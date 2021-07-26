@@ -97,7 +97,7 @@ double find_sd(int * vec, int tam, double mean){
 
     #pragma omp parallel for num_threads(T/2) shared(vec) reduction(+ : sd)
     for(int i=0; i<tam; i++){
-        sd += pow((vec[i] - mean),2);
+        sd += pow(((double) vec[i] - mean),2);
     }
 
     sd /= tam;
@@ -105,7 +105,6 @@ double find_sd(int * vec, int tam, double mean){
 
     return sd;
 }
-
 
 //Função de comparação utilizada no quicksort
 int cmpfunc (const void * a, const void * b) {
@@ -230,7 +229,7 @@ int main(int argc, char * argv[]){
         #pragma omp parallel for num_threads(T/2) shared(mean_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             mean_cidades[i] = find_city_mean(&(grades[i * RCA[2]]), RCA[2]);
-            printf("Cidade: %d | Mean: %.2lf\n",i,mean_cidades[i]);
+            //printf("Cidade: %d | Mean: %.2lf\n",i,mean_cidades[i]);
         }
 
         MPI_Isend(mean_cidades, RCA[0] * RCA[1], MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &request);
@@ -238,14 +237,14 @@ int main(int argc, char * argv[]){
         #pragma omp parallel for num_threads(T/2) shared(mean_regioes)
         for(int i=0; i<RCA[0]; i++){
             mean_regioes[i] = find_mean(&(mean_cidades[i*RCA[1]]), RCA[1]);
-            printf("Região: %d | Mean: %.2lf\n",i,mean_regioes[i]);
+            //printf("Região: %d | Mean: %.2lf\n",i,mean_regioes[i]);
         }
 
         tag = 2;
         MPI_Isend(mean_regioes, RCA[0], MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &request);
 
         mean_brasil = find_mean(mean_regioes, RCA[0]);
-        printf("Brasil | Mean: %.2lf\n",mean_brasil);
+        //printf("Brasil | Mean: %.2lf\n",mean_brasil);
 
         tag = 3;
         MPI_Send(&mean_brasil, 1, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
@@ -266,7 +265,7 @@ int main(int argc, char * argv[]){
         #pragma omp parallel for num_threads(T/2) shared(sd_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             sd_cidades[i] = find_sd(&(grades[i * RCA[2]]), RCA[2], mean_cidades[i]);
-            printf("Cidade: %d | SD: %.2lf\n",i,sd_cidades[i]);
+            //printf("Cidade: %d | SD: %.2lf\n",i,sd_cidades[i]);
         }
 
         tag = 2;
@@ -275,15 +274,55 @@ int main(int argc, char * argv[]){
         #pragma omp parallel for num_threads(T/2) shared(mean_regioes)
         for(int i=0; i<RCA[0]; i++){
             sd_regioes[i] = find_sd(&(grades[i*RCA[1]*RCA[2]]), RCA[1]*RCA[2], mean_regioes[i]);
-            printf("Região: %d | SD: %.2lf\n",i,sd_regioes[i]);
+            //printf("Região: %d | SD: %.2lf\n",i,sd_regioes[i]);
         }
 
         tag = 3;
         MPI_Recv(&mean_brasil, 1, MPI_DOUBLE, src, tag, MPI_COMM_WORLD, &status);
 
         sd_brasil = find_sd(grades, RCA[0] * RCA[1] * RCA[2], mean_brasil);
-        printf("Brasil | SD: %.2lf\n",sd_brasil);
+        //printf("Brasil | SD: %.2lf\n",sd_brasil);
 
+    }
+
+    if(my_rank == 5){
+        double * median_cidades = (double*) malloc(RCA[0] * RCA[1] * sizeof(double));
+        double * median_regioes = (double*) malloc(RCA[0] * sizeof(double));
+        double median_brasil;
+
+        #pragma omp parallel for num_threads(T) shared(median_cidades)
+        for(int i=0; i<RCA[0] * RCA[1]; i++){
+            qsort(&(grades[i * RCA[2]]), RCA[2], sizeof(int), cmpfunc);
+            /*
+            for(int i=0; i<RCA[0];i++){
+                for(int j=0; j<RCA[1];j++){
+                    for(int k=0; k<RCA[2]; k++){
+                        printf("%d ",grades[i*RCA[1]*RCA[2] + j*RCA[2] + k]);
+                    }
+                    printf("\n");
+                }
+                printf("\n");
+            }
+            */
+            median_cidades[i] = (RCA[2] % 2) ? grades[RCA[2]/2 + i*RCA[2]] : 
+                (grades[RCA[2]/2 + i*RCA[2] - 1] + grades[RCA[2]/2 + i*RCA[2]]) / 2.0;
+
+            printf("Cidade: %d | Median: %.2lf\n",i,median_cidades[i]);
+        }
+
+        #pragma omp parallel for num_threads(T) shared(median_regioes)
+        for(int i=0; i<RCA[0]; i++){
+            qsort(&(grades[i * RCA[1] * RCA[2]]), RCA[1] * RCA[2], sizeof(int), cmpfunc);
+            median_regioes[i] = ((RCA[1] * RCA[2]) % 2) ? grades[(i*RCA[1]*RCA[2] + RCA[1]*RCA[2]/2)] : 
+                (grades[(i*RCA[1]*RCA[2] + RCA[1]*RCA[2]/2) - 1] + grades[(i*RCA[1]*RCA[2] + RCA[1]*RCA[2]/2)]) / 2.0;
+            printf("Região: %d | Median: %.2lf\n",i,median_regioes[i]);
+        }
+
+        qsort(grades, RCA[0] * RCA[1] * RCA[2], sizeof(int), cmpfunc);
+        median_brasil = ((RCA[0] * RCA[1] * RCA[2]) % 2) ? grades[((RCA[0] * RCA[1] * RCA[2]))/2] : 
+            (grades[((RCA[0] * RCA[1] * RCA[2]))/2 - 1] + grades[((RCA[0] * RCA[1] * RCA[2]))/2]) / 2.0;
+        printf("Brasil | Median: %.2lf\n",median_brasil);
+        
     }
 
 

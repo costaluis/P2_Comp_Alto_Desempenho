@@ -186,7 +186,7 @@ int main(int argc, char * argv[]){
 
     //Finaliza a contagem do tempo
     time = omp_get_wtime() - time;
-
+    
     //O código abaixo realiza a impressão dos resultados
     for(int i=0; i<R; i++){
         for(int j=0; j<C; j++){
@@ -208,7 +208,7 @@ int main(int argc, char * argv[]){
     printf("\nMelhor região: Região %d\n",best_mean_region_index);
 
     printf("Melhor cidade: Região %d, Cidade %d\n",best_city_index_i, best_city_index_j);
-
+    
     printf("\nTempo de resposta sem considerar E/S, em segundos: %.8fs\n",time);
 
     free(grades);

@@ -8,6 +8,12 @@ Rodrigo Augusto Valeretto - 10684792
 Thiago Daniel Cagnoni de Pauli - 10716629
 */
 
+/*
+Compilação e execução: make -f Makefile.seq < input.txt
+Compilação: gcc studentsseq.c -o studentsseq -fopenmp -lm
+Execução: ./studentsseq < input.txt
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>

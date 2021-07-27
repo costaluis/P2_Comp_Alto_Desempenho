@@ -8,6 +8,12 @@ Rodrigo Augusto Valeretto - 10684792
 Thiago Daniel Cagnoni de Pauli - 10716629
 */
 
+/*
+Compilação e execução: make -f Makefile.par < input.txt
+Compilação: mpicc studentspar.c -o studentspar -fopenmp -lm
+Execução: mpirun -np 6 --hostfile hostfile.txt ./studentspar < input.txt  > outputpar.txt
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>

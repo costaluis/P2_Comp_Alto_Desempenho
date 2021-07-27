@@ -11,7 +11,7 @@ Thiago Daniel Cagnoni de Pauli - 10716629
 /*
 Compilação e execução: make -f Makefile.par < input.txt
 Compilação: mpicc studentspar.c -o studentspar -fopenmp -lm
-Execução: mpirun -np 6 --hostfile hostfile.txt ./studentspar < input.txt  > outputpar.txt
+Execução: mpirun -np 6 --hostfile hostfile.txt --map-by node ./studentspar < input.txt
 */
 
 #include <stdio.h>
@@ -255,17 +255,7 @@ int main(int argc, char * argv[]){
         best_reg = find_max_index(analises_regioes.mean, RCA[0]);
 
         time = omp_get_wtime() - time;
-        /*
-        for(int i=0; i<RCA[0]; i++){
-            for(int j=0; j<RCA[1]; j++){
-                for(int k=0; k<RCA[2]; k++){
-                    printf("%d ", grades[i*RCA[1]*RCA[2] + j*RCA[2] + k]);
-                }
-                printf("\n");
-            }
-            printf("\n");
-        }
-        */
+
         for(int i=0; i<RCA[0]; i++){
             for(int j=0; j<RCA[1]; j++){
                 printf("Reg %d - Cid %d: menor: %d, maior: %d, mediana: %.2lf, média: %.2lf e DP: %.2lf\n", 
@@ -295,6 +285,7 @@ int main(int argc, char * argv[]){
         printf("Melhor região: Região %d\n", best_reg);
         printf("Melhor cidade: Região %d, Cidade %d\n", best_city/RCA[1], best_city%RCA[1]);
 
+    
         printf("\n");
         printf("Tempo de resposta sem considerar E/S, em segundos: %.8fs\n",time);
     }
@@ -308,7 +299,7 @@ int main(int argc, char * argv[]){
         int * max_regioes = (int*) malloc(RCA[0] * sizeof(int));
         int max_brasil;
 
-        //#pragma omp parallel for num_threads(T/2) shared(max_cidades)
+        #pragma omp parallel for num_threads(2) shared(max_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             max_cidades[i] = find_max(&(grades[i * RCA[2]]), RCA[2]);
             //printf("Cidade: %d | Max: %d\n",i,max_cidades[i]);
@@ -317,7 +308,7 @@ int main(int argc, char * argv[]){
         tag = 0;
         MPI_Isend(max_cidades, RCA[0] * RCA[1], MPI_INT, dst, tag, MPI_COMM_WORLD, &(requests[0]));
 
-        //#pragma omp parallel for num_threads(T/2) shared(max_regioes)
+        #pragma omp parallel for num_threads(2) shared(max_regioes)
         for(int i=0; i<RCA[0]; i++){
             max_regioes[i] = find_max(&(max_cidades[i*RCA[1]]), RCA[1]);
             //printf("Região: %d | Max: %d\n",i,max_regioes[i]);
@@ -349,7 +340,7 @@ int main(int argc, char * argv[]){
         int * min_regioes = (int*) malloc(RCA[0] * sizeof(int));
         int min_brasil;
 
-        #pragma omp parallel for num_threads(T/2) shared(min_cidades)
+        #pragma omp parallel for num_threads(2) shared(min_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             min_cidades[i] = find_min(&(grades[i * RCA[2]]), RCA[2]);
             //printf("Cidade: %d | Min: %d\n",i,min_cidades[i]);
@@ -358,7 +349,7 @@ int main(int argc, char * argv[]){
         tag = 0;
         MPI_Isend(min_cidades, RCA[0] * RCA[1], MPI_INT, dst, tag, MPI_COMM_WORLD, &(requests[0]));
 
-        #pragma omp parallel for num_threads(T/2) shared(min_regioes)
+        #pragma omp parallel for num_threads(2) shared(min_regioes)
         for(int i=0; i<RCA[0]; i++){
             min_regioes[i] = find_min(&(min_cidades[i*RCA[1]]), RCA[1]);
             //printf("Região: %d | Min: %d\n",i,min_regioes[i]);
@@ -391,7 +382,7 @@ int main(int argc, char * argv[]){
         double mean_brasil;
         MPI_Request request;
 
-        #pragma omp parallel for num_threads(T/2) shared(mean_cidades)
+        #pragma omp parallel for num_threads(2) shared(mean_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             mean_cidades[i] = find_city_mean(&(grades[i * RCA[2]]), RCA[2]);
             //printf("Cidade: %d | Mean: %.2lf\n",i,mean_cidades[i]);
@@ -403,7 +394,7 @@ int main(int argc, char * argv[]){
         MPI_Isend(mean_cidades, RCA[0] * RCA[1], MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &(requests[1]));
 
 
-        #pragma omp parallel for num_threads(T/2) shared(mean_regioes)
+        #pragma omp parallel for num_threads(2) shared(mean_regioes)
         for(int i=0; i<RCA[0]; i++){
             mean_regioes[i] = find_mean(&(mean_cidades[i*RCA[1]]), RCA[1]);
             //printf("Região: %d | Mean: %.2lf\n",i,mean_regioes[i]);
@@ -448,7 +439,7 @@ int main(int argc, char * argv[]){
         src = 3; tag = 1;
         MPI_Recv(mean_cidades, RCA[0] * RCA[1], MPI_DOUBLE, src, tag, MPI_COMM_WORLD, &status);
 
-        #pragma omp parallel for num_threads(T/2) shared(sd_cidades)
+        #pragma omp parallel for num_threads(2) shared(sd_cidades)
         for(int i=0; i<RCA[0] * RCA[1]; i++){
             sd_cidades[i] = find_sd(&(grades[i * RCA[2]]), RCA[2], mean_cidades[i]);
             //printf("Cidade: %d | SD: %.2lf\n",i,sd_cidades[i]);
@@ -460,7 +451,7 @@ int main(int argc, char * argv[]){
         src = 3; tag = 2;
         MPI_Recv(mean_regioes, RCA[0], MPI_DOUBLE, src, tag, MPI_COMM_WORLD, &status);
 
-        #pragma omp parallel for num_threads(T/2) shared(mean_regioes)
+        #pragma omp parallel for num_threads(2) shared(mean_regioes)
         for(int i=0; i<RCA[0]; i++){
             sd_regioes[i] = find_sd(&(grades[i*RCA[1]*RCA[2]]), RCA[1]*RCA[2], mean_regioes[i]);
             //printf("Região: %d | SD: %.2lf\n",i,sd_regioes[i]);
